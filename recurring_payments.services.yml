@@ -1,0 +1,8 @@
+services:
+  recurring_payments.manager:
+    class: Drupal\recurring_payments\RecurringPaymentsManager
+    arguments: ['@plugin.manager.mail', '@renderer', '@language_manager']
+  recurring_payments.expiry_event_subscriber:
+    class: 'Drupal\recurring_payments\EventSubscriber\ExpiryEventSubscriber'
+    tags:
+      - { name: 'event_subscriber' }

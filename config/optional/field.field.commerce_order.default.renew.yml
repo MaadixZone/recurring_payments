@@ -1,0 +1,18 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - commerce_order.commerce_order_type.default
+    - field.storage.commerce_order.renew
+id: commerce_order_item.default.expiry
+field_name: renew
+entity_type: commerce_order
+bundle: default
+label: 'Renew'
+description: 'Renew this item automatically'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: boolean

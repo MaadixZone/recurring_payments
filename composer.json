@@ -1,0 +1,14 @@
+{
+  "name": "drupal/recurring_payments",
+  "type": "drupal-module",
+  "description": "Handles the payments that needs to be charged with periods.",
+  "keywords": ["Drupal"],
+  "license": "GPL-2.0+",
+  "homepage": "https://www.drupal.org/project/recurring_payments",
+  "minimum-stability": "dev",
+  "support": {
+    "issues": "https://www.drupal.org/project/issues/recurring_payments",
+    "source": "http://cgit.drupalcode.org/recurring_payments"
+  },
+  "require": { }
+}

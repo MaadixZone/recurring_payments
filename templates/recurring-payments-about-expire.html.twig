@@ -1,0 +1,23 @@
+{#
+Template to process the about to expire mail that recurring payments module will send.
+Available variables:
+      - 'order_items': an array with the expiring items in order.
+      - 'user': the customer object.
+      - 'order_entity': the order entity object.
+      - 'remaining days': the remaining days to expire, signed.
+      - 'renew_url': the url to renew the purchase.
+#}
+{{ 'Hello @user'|t({ '@user': user.label }) }},
+<br/>
+{{ 'These items in order #@number are expiring in @days days:'|t({'@number': order_entity.getOrderNumber, '@days' : remaining_days }) }}
+<br/>
+{{ order_items|length }}
+{% for order_item in order_items %}
+- <span>#{{ order_item.id }} - {{ order_item.label }}</span>
+{% endfor %}
+
+<br />
+{{ 'If you had set autorenew when purchasing it will do automatically.'|t() }} <br/>
+{{ 'If not you can renew in @renew_url'|t({ '@renew_url' : renew_url }) }}.
+
+

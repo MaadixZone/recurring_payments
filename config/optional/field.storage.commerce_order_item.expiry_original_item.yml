@@ -1,0 +1,21 @@
+langcode: en
+status: true
+dependencies:
+  enforced:
+    module:
+      - recurring_payments
+  module:
+    - commerce_order
+field_name: expiry_original_item
+id: commerce_order_item.expiry_original_item
+entity_type: commerce_order_item
+type: entity_reference
+settings:
+  target_type: commerce_order_item
+module: core
+locked: true
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

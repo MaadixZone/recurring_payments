@@ -1,0 +1,30 @@
+recurring_payments.form:
+  path: '/admin/commerce/recurring-payments'
+  defaults:
+    _form: '\Drupal\recurring_payments\Form\RecurringPaymentsQueueForm'
+    _title: 'Recurring Payments'
+  requirements:
+    _permission: 'administer orders'
+entity.commerce_order_item.renew:
+  path: '/user/{user}/ordered-items/{commerce_order_item}/renew'
+  defaults:
+    _form: '\Drupal\recurring_payments\Form\RecurringPaymentsRenewForm'
+    _title: 'Renew order item'
+  options:
+    parameters:
+      user:
+        type: 'entity:user'
+      commerce_order_item:
+        type: 'entity:commerce_order_item'
+  requirements:
+    _permission: 'renew own order items'
+    user: ^[a-zA-Z0-9_]+
+    _entity_access: commerce_order_item.view
+    _entity_access: user.edit
+recurring_payments.test_form:
+  path: '/admin/commerce/recurring-payments-test'
+  defaults:
+    _form: '\Drupal\recurring_payments\Form\RecurringPaymentsTestForm'
+    _title: 'Recurring Payments Test'
+  requirements:
+    _permission: 'administer orders'

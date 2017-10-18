@@ -1,0 +1,385 @@
+<?php
+
+/**
+ * @file
+ * Contains recurring_payments.module.
+ */
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function recurring_payments_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    // Main module help for the recurring_payments module.
+    case 'help.page.recurring_payments':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Handles the payments that needs to be charged with periods.') . '</p>';
+      //recurring_payments_test_routine();
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function recurring_payments_theme($existing, $type, $theme, $path) {
+  return [
+    'recurring_payments_about_expire' => [
+      'variables' => [
+        'order_items' => NULL,
+        'user' => NULL,
+        'order_entity' => NULL,
+        'remaining_days' => NULL,
+        'renew_url' => NULL
+      ]
+    ],
+    'recurring_payments_renew' => [
+      'variables' => [
+        'order_items' => NULL,
+        'user' => NULL,
+        'order_entity' => NULL,
+        'period' => NULL,
+      ]
+    ],
+    'recurring_payments_autorenew' => [
+      'variables' => [
+        'order_items' => NULL,
+        'user' => NULL,
+        'order_entity' => NULL,
+        'period' => NULL,
+      ]
+    ],
+
+    'recurring_payments_bad_renew' => [
+      'variables' => [
+        'order_items' => NULL,
+        'user' => NULL,
+        'order_entity' => NULL,
+        'period' => NULL,
+        'renew_url' => NULL
+      ]
+    ],
+    'recurring_payments_expire' => [
+      'variables' => [
+        'order_items' => NULL,
+        'user' => NULL,
+        'order_entity' => NULL,
+        'period' => NULL,
+        'renew_url' => NULL
+      ]
+    ],
+    'recurring_payments' => [
+      'template' => 'recurring_payments',
+      'render element' => 'children',
+    ],
+  ];
+}
+
+/**
+ * Testing routine.
+ */
+function recurring_payments_test_routine(){
+  // @todo creating test suite.
+  //
+  //CreateOrder:
+  //kint(recurring_payments_test_create_order(20));
+
+  //Load item
+  // $order_item = entity_load_multiple('commerce_order_item',[163])[163];
+  // kint($order_item);
+
+
+  //Getting expiry
+  // kint($order_item->get('expiry')->first()->value);
+
+  //Adding expiry field
+  //$order_item->set('expiry',REQUEST_TIME);
+  //$order_item->save();
+
+  //Get attributes of purchased entity in commerce order item
+  //kint(entity_load_multiple('commerce_order_item', [10])[10]->getPurchasedEntity()->getAttributeValue('attribute_period')->getName());
+
+
+  // Set the order to expire today [10 bias to avoid matching also yesterday (-1)] (reminder action)
+  // $order_item->set('expiry', REQUEST_TIME + 20);
+  // $order_item->save();
+
+  // Set the order to expire in 15 days (reminder action)
+  //$order_item->set('expiry', REQUEST_TIME + ( 86400 * 15 ));
+  //$order_item->save();
+
+  //Set the order to expire yesterday. (expire or renew action)
+  // $order_item->set('expiry', REQUEST_TIME - 20 );
+  // $order_item->save();
+
+  //Set order item order_id
+  //$order_item->set('order_id', 28);
+  //$order_item->save();
+
+  //recurring_payments_crono();
+
+}
+
+/**
+ * Returns the interval to check given remaining days.
+ *
+ * It will be useful when base_time is known , the process is :
+ *  Start as $base_time + $remaining_days.
+ *  End as $base_time + $remaining_days + 1day
+ *
+ * @param int $base_time
+ *  The time to offset the remaining days.
+ * @param int $remaining_days
+ *  The remaining days to expire.
+ *
+ * @return array
+ *  With the interval that will activate the expiration related actions.
+ */
+function _recurring_payments_action_interval($remaining_days, $base_time = REQUEST_TIME){
+  $action_interval = [];
+  $remaining=[
+    '15',
+    '7',
+    '1',
+    '0',
+    '-1'
+  ];
+  $date = new DateTime();
+  $date->setTimestamp($base_time);
+  $date->modify($remaining_days . ' day');
+  $start = $date->getTimestamp();
+  $date->add(new DateInterval('P1D'));
+  $end = $date->getTimestamp();
+  $action_interval[(string)$remaining_days] = [$start, $end];
+
+  //TEST INTERVAL
+  $date->setTimestamp(REQUEST_TIME);
+    $date->setTimestamp(REQUEST_TIME);
+    $action_interval["test"][] = $date->getTimestamp();
+    $date->add(new DateInterval('P13M'));
+    $action_interval["test"][] = $date->getTimestamp();
+
+  return $action_interval;
+}
+
+
+
+/**
+ * Implements hook_cron().
+ *
+ * Queues orders that need to be checked for expiring or renew.
+ */
+function recurring_payments_cron() {
+  // Set interval for run cron. Default value is 1 day.
+  $recurring_payments_timestamp = Drupal::state()->get('recurring_payments.day_timestamp') ? : 0;
+  if ((REQUEST_TIME - $recurring_payments_timestamp) < 86400) { //to test < 10) {
+    // Must run once a day.
+    return;
+  }
+  $queue = \Drupal::queue('manual_recurring_payments');
+
+
+  $remaining=[
+    '+15' => [],
+    '+7' => [],
+    '+1' => [],
+    '+0' => [],
+    '-1' => [],
+    //TEST:
+    //'+364' => []
+  ];
+  foreach($remaining as $remaining_days => $ids){
+    $query = \Drupal::entityQuery('commerce_order');
+    $interval = _recurring_payments_action_interval($remaining_days);
+
+    $query
+      ->condition('order_items.entity.expiry',$interval[$remaining_days], "BETWEEN")
+      ->condition('state', 'completed');
+    $ids = $query->execute();
+    if ($ids){
+      $order_storage = \Drupal::entityManager()->getStorage('commerce_order');
+      $orders = $order_storage->loadMultiple($ids);
+      foreach ($orders as $id => $order){
+        $item = [
+          "order" => $order,
+          "id" => $id,
+          "remaining_days" => $remaining_days,
+          "act_interval" => $interval[$remaining_days]
+        ];
+        $queue->createItem($item );
+      }
+    }
+  }
+  Drupal::state()->set('recurring_payments.day_timestamp', REQUEST_TIME);
+}
+/*  $ids = \Drupal::entityManager()->getStorage('aggregator_feed')->getFeedIdsToRefresh();
+foreach (Feed::loadMultiple($ids) as $feed) {
+    if ($queue->createItem($feed)) {
+      // Add timestamp to avoid queueing item more than once.
+      $feed->setQueuedTime(REQUEST_TIME);
+      $feed->save();
+    }
+  }
+
+  // Delete queued timestamp after 6 hours assuming the update has failed.
+  $ids = \Drupal::entityQuery('aggregator_feed')
+    ->condition('queued', REQUEST_TIME - (3600 * 6), '<')
+    ->execute();
+
+  if ($ids) {
+    $feeds = Feed::loadMultiple($ids);
+    foreach ($feeds as $feed) {
+      $feed->setQueuedTime(0);
+      $feed->save();
+    }
+  }
+}*/
+
+/**
+ * Sets order_item order_id ref property to order when a order_item is updated
+ *
+ * We need this as when we check in the future if a order_item is expiring we
+ * need to deal with duplicated references.Also removes reference from other
+ * orders, as we don't want that order delete deletes reused order items.
+ *
+ * @todo We nee to deal with log of orders, as this operation breaks old orders
+ */
+function recurring_payments_commerce_order_presave(Drupal\commerce_order\Entity\OrderInterface $order) {
+  $items = $order->getItems();
+  foreach ($items as $item){
+    $query = \Drupal::entityQuery('commerce_order');
+    $query
+      ->condition('order_items',$item->id())
+      ->condition('state', 'completed');
+    $ids = $query->execute();
+    if ($ids){
+      $order_storage = \Drupal::entityManager()->getStorage('commerce_order');
+      $orders = $order_storage->loadMultiple($ids);
+      foreach ($orders as $id => $existing_order){
+        $existing_order_items = $existing_order->getItems();
+        $new_order_items = array_udiff($existing_order_items, [$item], function ($i, $ii){return  $i->id()-$ii->id();});
+        $existing_order->setItems($new_order_items);
+        $existing_order->save();
+      }
+    }
+    // Set the order_id in items to fix order items list of order
+    $item->set('order_id',$order->id());
+    $item->save();
+  }
+}
+
+/**
+ * Removes order item from order if it is used by other order to avoid
+ * deleting orders in Order::postDelete.
+ */
+function recurring_payments_commerce_order_predelete(Drupal\Core\Entity\EntityInterface $entity){
+  $items = $entity->getItems();
+  foreach ($items as $item){
+    $query = \Drupal::entityQuery('commerce_order');
+    $query
+      ->condition('order_items',$item->id());
+    $ids = $query->execute();
+
+    //exclude the current entity
+    $ids_clean = array_diff($ids, [$entity->id()]);
+    if (!empty($ids_clean)){
+      $existing_order_items = $entity->getItems();
+      $new_order_items = array_udiff($existing_order_items, [$item], function ($i, $ii){return  $i->id()-$ii->id();});
+      $entity->setItems($new_order_items);
+      // Set the order_id in items to fix order items list of order
+      // to last order id in query results.
+      $item->set('order_id',array_pop($ids_clean));
+      $item->save();
+    }
+  }
+}
+
+/**
+ * Clones order item and pass to previous  order before removal of this item.
+ *
+ */
+function recurring_payments_commerce_order_item_predelete(Drupal\Core\Entity\EntityInterface $order_item){
+  return;
+  // look for other order that use this item.
+  $query = \Drupal::entityQuery('commerce_order');
+  $query
+    ->condition('order_items',$order_item->id());
+  $ids = $query->execute();
+
+  //exclude the current entity
+  $ids_clean = [$order_item->getOrderId()];
+  if (!empty($ids_clean)){
+    // Create a copy
+    $order_item_copy = $order_item->createDuplicate();
+    $order_item_copy->save();
+
+    $orders = entity_load_multiple('commerce_order', $ids_clean);
+    // if others orders using this add the new clone of order_item
+    // to let $entity order item be removed.
+    foreach($orders as $id => $order){
+      $order->addItem($order_item_copy);
+      $order->save;
+    }
+  }
+}
+/**
+ * Implements hook_mail().
+ *
+ * Captures the outgoing mail and sets appropriate message body and headers.
+ */
+function recurring_payments_mail($key, &$message, $params) {
+  if (isset($params['headers'])) {
+    $message['headers'] = array_merge($message['headers'], $params['headers']);
+  }
+
+  $message['from'] = $params['from'];
+  $message['subject'] = $params['subject'];
+  $message['body'][] = $params['body'];
+}
+
+/**
+ * DEPRECATED Gets the interval to check given order period and remaining days.
+ *
+ * It will be useful when completed_time is UNKNOWN , the process is :
+ *  Start as REQUEST_TIME - $period + $remaining_days.
+ *  End as REQUEST_TIME- $period + $remaining_days + 1day
+ *
+ * @param int $remaining_days
+ *  The remaining days to expire.
+ *
+ * @return array
+ *  Periods intervals that will trig the expiration related actions from now.
+ */
+function _recurring_payments_action_interval_without_expire($remaining_days){
+  $action_interval = [];
+  $int_period=[
+    'monthly' => 1,
+    'quarterly' => 3,
+    'annual' => 12,
+  ];
+
+  $date = new DateTime();
+  foreach($int_period as $period => $q_months){
+    $date->setTimestamp(REQUEST_TIME);
+    $date->sub(new DateInterval('P' . $q_months . 'M'));
+    $date->modify('+' . $remaining_days . ' day');
+    $action_interval[$period][] = $date->getTimestamp();
+    $date->add(new DateInterval('P1D'));
+    $action_interval[$period][] = $date->getTimestamp();
+  }
+    $date->setTimestamp(REQUEST_TIME);
+    $date->sub(new DateInterval('P10M'));
+    $action_interval["test"][] = $date->getTimestamp();
+    $date->setTimestamp(REQUEST_TIME);
+    $action_interval["test"][] = $date->getTimestamp();
+
+  return $action_interval;
+}
+
+
+

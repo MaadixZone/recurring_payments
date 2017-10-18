@@ -1,0 +1,5 @@
+name: Recurring payments
+type: module
+description: Handles the payments that needs to be charged with periods.
+core: 8.x
+package: Commerce

@@ -1,0 +1,21 @@
+{#
+Template to process the bad renew mail that recurring payments module will send.
+Available variables:
+      - 'order_items': an array with the expiring items in order.
+      - 'user': the customer object.
+      - 'order_entity': the order entity object.
+      - 'renew_url': the url to renew the purchase.
+#}
+Hello {{ user.label }},
+<br/>
+These items in {{ 'order #@number'|t({'@number': order_entity.getOrderNumber}) }} have been expired and cannot be automatically renewed:
+<br/>
+{{ order_items|length }}
+{% for order_item in order_items %}
+- <span>#{{ order_item.id }} - {{ order_item.label }}</span>
+{% endfor %}
+
+<br />
+You could review the orders in {{ renew_url }}.
+
+

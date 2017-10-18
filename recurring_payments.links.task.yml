@@ -1,0 +1,4 @@
+entity.commerce_order_item.renew:
+  route_name: entity.commerce_order_item.renew
+  base_route: entity.commerce_order_item.renew
+  title: 'Renew'
