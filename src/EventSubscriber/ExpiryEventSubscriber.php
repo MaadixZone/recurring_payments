@@ -53,6 +53,12 @@ class ExpiryEventSubscriber implements EventSubscriberInterface {
         $expiry_item = $order_item->expiry_original_item->entity;
         $expiry_order = $expiry_item->getOrder();
         $expiry_order->state->value = 'replaced';
+        // At this point mark invoice autofill to zero to prevent increasing this value
+        /*if(isset($expiry_order->invoice_number)){
+          $expiry_order->invoice_number->autofill = 0;
+        }
+        // Done at field level to provide this behavior everytime is saved
+         */
         $expiry_order->save();
       }
     }

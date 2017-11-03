@@ -61,6 +61,7 @@ class RecurringPaymentsManager implements RecurringPaymentsManagerInterface {
    */
   public function expire(OrderInterface $order, $act_interval) {
     $order->state->value = 'expired';
+    // In this point autofill must be 0 to prevent increase invoice number, it's done at field level.
     $order->save();
     $to = $order->getEmail();
     $params = [
